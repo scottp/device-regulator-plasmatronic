@@ -1,0 +1,62 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+$| = 1;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+# Get how many days.
+my $num = $ARGV[0];
+die "Must be less than 31\n" if ($num > 30);
+
+# Get the current day
+my $end = $pl->pl_nv_day_counter + 1;
+my $start = $end - $num + 1;
+if ($start < 1) {
+	$start = 30 - abs($start);
+}
+
+# What is the current date
+my $today = time;
+
+print "Date\tDay\tT2F\tLoad\tCharge\tSOC\n";
+my $count = $num;
+while (1) {
+	print get_day($count) . "\t";
+	print $count . "\t";
+	print $pl->data('nv_' . $start . '_time') . "\t";
+	print $pl->data('nv_' . $start . '_load') . "\t";
+	print $pl->data('nv_' . $start . '_charge') . "\t";
+	print $pl->data('nv_' . $start . '_soc') . "\t";
+	print "\n";
+	$count--;
+	$start++;
+	if ($start > 30) {
+		$start = 1;
+	}
+	if ($count < 1) {
+		last;
+	}
+}
+
+if ($ARGV[1]) {
+	# Add todays data
+	print get_day($count) . "\t";
+	print "$count\t";
+	print $pl->pl_dfltim . "\t";
+	print $pl->pl_out . "\t";
+	print $pl->pl_in . "\t";
+	print $pl->pl_dsoc . "\t";
+	print "\n";
+}
+
+exit 0;
+
+sub get_day {
+	my ($days_ago) = @_;
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+	       localtime(time - ((24 * 3600) * $days_ago));
+	$mon++;
+	$year += 1900;
+	return sprintf("%04d%02d%02d", $year, $mon, $mday);
+}

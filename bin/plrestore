@@ -1,0 +1,21 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+$| = 1;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+open (IN, $ARGV[0]) 
+	|| die "Can read file (must exist)";
+
+while (<IN>) {
+	chomp;
+	next if (/^\s*#/);
+	my ($key, $val) = split(/\t/, $_);
+	print STDERR "Restoring $key = $val";
+	$pl->data($key, $val);
+	print STDERR " (now=" . $pl->data($key) . ")\n";
+}
+
+exit 0;
+

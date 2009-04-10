@@ -1,0 +1,10 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+print "Load = " . $pl->pl_load . $pl->unit('load') . "\n";
+print "Charge = " . $pl->pl_charge . $pl->unit('charge') . "\n";
+print "SOC = " . $pl->pl_dsoc . $pl->unit('dsoc') . "\n";
+

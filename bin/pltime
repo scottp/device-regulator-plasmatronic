@@ -1,0 +1,33 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+$| = 1;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+print "Current time (hour) = " . $pl->pl_hour . "\n";
+print "Current time (min) = " . $pl->pl_min . "\n";
+
+if (($ARGV[0] || "") eq "-s") {
+	print "\n";
+	print "Setting time to system time\n";
+
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+	       localtime(time);
+
+	$hour = $hour * 10;
+	my $hourpart = int($min / 6);
+
+	# HOUR
+	my $new = $pl->pl_hour($hour + $hourpart);
+	print "Returned time (hour) = " . $new . "\n";
+	print "New time (hour) = " . $pl->pl_hour . "\n";
+
+	# MIN
+	$new = $pl->pl_min($min);
+	print "Returned time (min) = " . $new . "\n";
+	print "New time (min) = " . $pl->pl_min . "\n";
+}
+
+exit 0;
+

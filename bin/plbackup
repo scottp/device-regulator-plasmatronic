@@ -1,0 +1,31 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+$| = 1;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+open (OUT, "> /tmp/pl." . get_day() . ".bak") 
+	|| die "Can not create file";
+
+print OUT "# Backup of plasmatronic regulator - " . get_day() . "\n";
+
+foreach my $key ($pl->list( { 'backup' => 1 } )) {
+	print OUT $key;
+	print OUT "\t";
+	print OUT $pl->data($key);
+	print OUT "\n";
+}
+
+print "\n";
+exit 0;
+
+sub get_day {
+	my ($days_ago) = @_;
+	$days_ago |= 0;
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+	       localtime(time - ((24 * 3600) * $days_ago));
+	$mon++;
+	$year += 1900;
+	return sprintf("%04d%02d%02d", $year, $mon, $mday);
+}

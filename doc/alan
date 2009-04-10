@@ -1,0 +1,189 @@
+
+
+
+
+
+From: "Alan Hutchinson" <alan@plasmatronics.com.au>
+Date: Thu Nov 7, 2002  18:32:08 Australia/Melbourne
+To: "Scott Penrose" <scottp@dd.com.au>
+Subject: Re: Plasmatronics PL with Linux
+
+Hi Scott
+The PLCOM program is not intended to be a closed source application.
+Can you read Pascal or Delphi code? I can copy you the sections which
+interpret the PL register values.
+For the current reading example you posed, the problem is to know the
+correct scaling for lext or cext.
+To get around the large dynamic range problem, cext or lext are stored as a
+single byte number.
+In the register called extf, there are four bits which determine how the
+values in cext and lext are to be interpreted.
+These bits indicate if cext or lext are scaled in 0.1A steps or 1A steps.
+The enabled bits were an internal quick and dirty way to clear the external
+inputs without having to clear each byte.
+Hence the cext and lext values are only valid if the corresponding enable
+bits are set.
+Hence, to form a complete total current reading you have to download three
+bytes - cint, cext and extf.
+The extf byte is coded like this:
+CF     extf         external flag and scale file
+         format  bit 0-external charge current scale 0 is 0-25.5, 1 is
+0-255A
+                         1-external load current scale 0 is 0-25.5, 1 is
+0-255A
+                         2- external charge enable 0-none 1  - enabled
+                         3- external load enable 0-none 1-enable
+                         4- vexf indicates battery voltage external
+1=enabled
+                         5- external push botton state
+                         6- external digital state
+                         7- expansion board present flag
+ Note:  bit 0 is lsb.
+I could understand some confusion regarding voltage readings.
+The value stored in register 50 is called batv and is the measured battery
+voltage, corrected for temperature and b- offset if enabled. This is the
+value used by the controller to regulate to. This value is scaled to 12V.
+Hence it needs to be multiplied by the voltage scale factor in the lower 4
+bits of volt register (93). 0- x1, 1-x2, 2-x2.666, 3-x3, 4- x4.
+I display the battery voltage on the screen in another way because it is mor
+e accurate on the higher voltage ranges.
+This is done by taking the raw battery voltage byte vbat (h'dd') and
+processing it using the hardware divider information contained in the vdiv
+register (not to be confused with the voltage range settings).
+The hardware divider gives the input voltage x0.2, x0.1 and x0.05. The
+controller switches up a range when the input voltage goes over about 19V
+and back at about 17V. The next range is about 38 going up and 36 coming
+down.
+There is also an offset.
+Hence to get to the voltage you need to
+1. read vdiv (32) and extract bits 4 and 5.
+2. If bit 4 and 5 are zero then  battery voltage = (vbat/20) + 7.5
+if bit 4 is set  then battery voltage=(vbat/10)  +15
+if bit 5 is set, then battery voltage =(vbat/5) +30
+where vbat is the value in register h'dd'  (range of 0-255)
+This voltage does not include the effect of b- correction or temp comp.
+I hope that makes it a bit clearer.
+Alan Hutchinson
+
+----- Original Message -----
+From: "Scott Penrose" <scottp@dd.com.au>
+To: "Steve Hunyady" <hunyady@kestrel.nmt.edu>
+Cc: "Alan Hutchinson" <alan@plasmatronics.com.au>
+Sent: Thursday, November 07, 2002 3:51 PM
+Subject: Re: Plasmatronics PL with Linux
+
+
+
+On Thursday, Nov 7, 2002, at 15:28 Australia/Melbourne, Steve Hunyady
+wrote:
+
+Hello, Scott.
+
+Here is the last email I got from Alan Hutchinson. Item 3 will help me
+make a fix that will probably improve things.
+
+I'll send another note soon describing my work; maybe it will help
+with composing a HOWTO or something.
+
+Ta
+
+Hi Steve
+1. For the temp sensor, you can make one yourself quite easily if you
+want
+to.
+The sensor is just an LM35 rigged up in 2 wire current mode using a
+470R
+resistor instead of the 200R they show in the app notes. This allows
+the
+lower end to go down to about -10oC.
+Look up the LM35 data sheet on Nat Semi's web site.
+2. PLX expansion board did not happen as such. We made a device called
+a PLA
+which allowed multiple PL controllers to be paralleled properly and
+did some
+of the extra alarm and control functions. The PLX is in limbo now
+because
+there is a new PL controller series in development and it may get done
+differently.
+
+
+3. There is one issue with Scott Penrose's stuff which I haven't had a
+change to talk to him about. There is a limit on how quickly data can
+be
+transferred over the bus between the PL and the PLI. The transfer is
+byte at
+a time. You send a command and get a reply or do an action to a single
+byte
+in the PL. Normally I try to restrict it to not more than 5 commands
+per
+second because any faster than this can conjest the bus if PLS sensors
+are
+
+This is GREAT. I did not know the 'actual' timings. I had made guesses
+around these values, but it is better to have it direct. I will have a
+review tonight and see if I can fix that today. Should be simple to put
+those delays in.
+
+present. (The PLS sensors have highest priority on the bus after the
+PL). It
+will work faster if you don't have other things attached to the bus
+but it
+may be less reliable. Because there is no error detection method on the
+reply code from the PL, I use a method of reading each value until I
+get the
+same answer twice in a row. This less than good protocol will be fixed
+up on
+the new PL series.
+
+I think what I will do is make it an option at connect time, something
+like.
+
+my $pl = Device::Regulator::Plasmatronic->new(
+port => '/dev/plasmatronic',
+checkvalue => 1,
+);
+
+Then users can choose to have it automatically keep checking till it
+gets two the same, or not if they prefer speed.
+
+Also, path delays come into the problem, particularily if you are
+using a
+GSM modem as sometimes delay of up to half a second can occur.
+
+Now that you are working (sort of) don't forget that you may get an
+incorrect value if the values are high.
+
+Actually Alan, you may be able to help me with that. Lets take a simple
+example like load, I use
+return $this->data('lint') + $this->data('lext');
+(usual dividers etc)
+
+Which gives me internal plus external, but only if they are less than
+25.5 amps (or whatever it is exactly).
+Can you tell me the correct value to pull, and the maths for the higher
+numbers.
+
+While I am on it too, what is the correct way to multiply for voltage ?
+I know you use 'batv' but not sure why it didn't work. Hmmm that was a
+long time ago, I might look at that again.
+
+Thanks
+
+Scott
+--
+Scott Penrose
+VP in charge of Pancakes
+http://linux.dd.com.au/
+scottp@dd.com.au
+
+Dismaimer: If you receive this email in error - please eat it
+immediately to prevent it from falling into the wrong hands.
+
+
+
+
+
+
+
+
+

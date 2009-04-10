@@ -1,0 +1,82 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+
+# Connect to Regulator
+my $pl = Device::Regulator::Plasmatronic->new();
+
+# Get how many days.
+my $num = $ARGV[0];
+die "Must be less than 31 days\n" if ($num > 30);
+
+# Get the current day (read entry from system)
+my $end = $pl->pl_nv_day_counter + 1;
+my $start = $end - $num + 1;
+if ($start < 1) {
+	$start = 30 - abs($start);
+}
+my $count = $num;
+
+# Formatting
+format STDOUT_TOP =
+Date		Day	T2F	Load	Charge	SOC	MISC
+------------------------------------------------------------------
+.
+format STDOUT =
+@<<<<<<<<<<<	@>>>	@##.#	@>>>>	@>>>>>	@>>>	@<<<<<<
+get($_);
+.
+
+# Output
+while (1) {
+	$_ = $start;
+	write;
+	$count--;
+	$start++;
+	$start = 1 if ($start > 30);
+	last if ($count < 1);
+}
+
+# Add todays data
+if ($ARGV[1]) {
+	$_ = -1;
+	write;
+}
+
+exit 0;
+
+# ==============================================================================
+
+sub get {
+	my ($what) = @_;
+	if ($what >= 0) {
+		return (
+			get_day($count), 
+			$count, 
+			$pl->data('nv_' . $what . '_time'), 
+			$pl->data('nv_' . $what . '_load'), 
+			$pl->data('nv_' . $what . '_charge'), 
+			$pl->data('nv_' . $what . '_soc'), 
+			$pl->data('nv_' . $what . '_m'),
+		);
+	} else {
+		return (
+			get_day($count),
+			$count,
+			$pl->pl_dfltim,
+			$pl->pl_out,
+			$pl->pl_in,
+			$pl->pl_dsoc,
+			'na',
+		);
+	}
+}
+
+sub get_day {
+	my ($days_ago) = @_;
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+	       localtime(time - ((24 * 3600) * $days_ago));
+	$mon++;
+	$year += 1900;
+	return sprintf("%04d%02d%02d", $year, $mon, $mday);
+}

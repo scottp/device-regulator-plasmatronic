@@ -1,0 +1,81 @@
+#!/usr/bin/perl -w
+use strict;
+use Time::localtime;
+
+# WHAT IS THIS ?
+#	A simple example of how you can use Plastmatronics library to read in a
+#	list of items, eg current voltage, daily loads etc and output them to a
+#	file name.
+#	
+#	This file can then be used to plot data for the day etc.
+#	Better would be a database for plotting.
+#
+#	An alternative to this, is to read the current from the device every
+#	few seconds, average it and record it occasionally. If that is too much
+#	effort, then for the period, you need to subtract it manually from the
+#	previous entry, or something like that.
+#
+# print "Load = " . $pl->pl_load . $pl->unit('load') . "\n";
+# print "Charge = " . $pl->pl_charge . $pl->unit('charge') . "\n";
+# print "SOC = " . $pl->pl_dsoc . $pl->unit('dsoc') . "\n";
+
+
+use Device::Regulator::Plasmatronic;
+
+# XXX: Configuration
+my $dir = shift || "/tmp";
+die "$dir does not exist" if (! -d $dir);
+my $wait = 30;
+my $title = $0;
+
+# Output format.
+#	- Unix Time Stamp
+#	- Current Voltage
+#	- Current CHARGE
+#	- Current LOAD
+#	- Daily Input
+#	- Daily Output
+#	- Since last load?
+my $last = 0;
+while (1) {
+
+	my $day = sprintf("%04d%02d%02d",
+			localtime->year() + 1900,
+			localtime->mon() + 1,
+			localtime->mday());
+
+	my $pl = Device::Regulator::Plasmatronic->new()
+		|| die "Can not open plasmatronics device";
+
+	open (OUT, ">> $dir/$day")
+		|| die "Can not open output $dir/$day";
+
+	my @out = ();
+
+	# Time (in a couple of formats)
+	push @out, time;
+	push @out, localtime->hour();
+	push @out, localtime->min();
+	push @out, (localtime->hour() * 60) + localtime->min();
+
+	# Current Usage
+	my $load = $pl->pl_load;
+	push @out, $load;
+	my $charge = $pl->pl_charge;
+	push @out, $charge;
+
+	# Daily totals ?
+	push @out, $pl->pl_dsoc;
+	#push @out, $pl->daily_input;
+	#push @out, $pl->daily_output;
+	#push @out, $pl->daily_output - $last;
+	#$last = $pl->daily_output;
+
+	print OUT join("\t", @out) . "\n";
+	print "Output = " . join("\t", @out) . "\n";
+
+	$0 = $title . " - " . $load . " load " . $charge . " charge";
+
+	sleep $wait;
+}
+

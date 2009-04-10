@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+
+my $pl = Device::Regulator::Plasmatronic->new();
+
+foreach my $bit (@ARGV) {
+	print "ARGV (" . $bit . ") = ";
+	my $val = eval "\$pl->pl_$bit";
+	if (defined($val)) {
+		print $val;
+	} else {
+		print "(invalid)";
+	}
+	if ($@) {
+		die $@;
+	}
+	print $pl->unit($bit);
+	print " - " . $pl->note($bit);
+	print "\n";
+}
+
+

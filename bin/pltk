@@ -1,0 +1,140 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use Tk;
+use Device::Regulator::Plasmatronic;
+
+=head1 NAME
+
+pltk - Plasmatronic Tk Interface
+
+=head1 DESCRIPTION
+
+An interface to all Plasmatronic interfaces.
+
+=head1 CONFIGURATION
+
+Version 1 Config
+
+ * Serial Port
+
+=head1 FEATURES
+
+ * Live updates of any fields wanted each second
+
+ * View and Download History
+
+ * Backup to File
+
+ * Restore from File
+
+ * View / Edit any of the fields
+
+ * Update the time
+
+=cut
+
+# ==============================================================================
+# CONFIGURAION
+# ==============================================================================
+my $config = {
+	'automatic' => [ qw/load charge dsoc in out batv/ ],	# What do we want to update
+	'port' => ($ARGV[0] || '/dev/plasmatronic'),
+};
+
+# ==============================================================================
+# REGULATOR CONNECTION
+# ==============================================================================
+my $pl = Device::Regulator::Plasmatronic->new()
+	or die "Can't connect to regulator";
+
+# ==============================================================================
+# GLOBAL / WATCHED Variables
+# ==============================================================================
+my $current = { 
+	'time' => "NA:NA",
+};
+
+# ==============================================================================
+# The Window and components
+# ==============================================================================
+# General Layout...
+#
+# 	$mw		MainWindow
+# 	$rt		Real Time Updates Frame
+# 	$misc		Msic stuff
+# 	$cmd		Command Buttons Frame
+my $mw = new MainWindow or die "Can't create Tk Window";
+
+{
+	my $f = $mw->Frame->pack();
+	$f->Label( -text => "Plasmatronic Regulator Controller",)->pack(-side => 'top');
+}
+my $f = $mw->Frame->pack(-expand => 1, -fill => 'both');
+my $rt = $f->Frame()->pack(-side => 'left', -expand => 1, -fill => 'y');
+my $misc = $f->Frame()->pack(-side => 'right', -expand => 1, -fill => 'y');
+my $cmd = $mw->Frame->pack(-side => 'bottom', -expand => 1, -fill => 'x');
+
+$rt->Label( -text => "Real Time",)->pack(-side => 'top');
+$misc->Label( -text => "Not Used Yet",)->pack(-side => 'top');
+
+# Time
+{
+	my $f = $rt->Frame->pack(-anchor => 'center');
+	$f->Label( -text => 'Time')->pack( -side => 'left');
+	$f->Label( -textvariable => \$current->{'time'})->pack( -side => 'right');
+}
+
+# Current Load / Charge
+foreach my $key (@{$config->{automatic}}) {
+	$current->{$key} = "unknown";
+	my $f = $rt->Frame->pack(-anchor => 'center');
+	$f->Label( -text => $key)->pack( -side => 'left', -anchor => 'e');
+	$f->Label(
+		-textvariable => \$current->{$key},
+	)->pack(
+		-side => 'right',
+		-anchor => 'w',
+	);
+}
+
+# Exit
+$mw->Button(
+	-text => "Exit",
+	-command => sub {exit 0;},
+)->pack;
+
+# ==============================================================================
+# Timed events
+# ==============================================================================
+# Update Entries...
+$mw->repeat(1000 => 
+	sub {
+		my @automatic = @{$config->{automatic}};
+		our $no;
+		$no++;
+		if ($no >= scalar(@automatic)) {
+			$no = 0;
+		}
+		my $entry = $automatic[$no];
+		my $method = "pl_" . $entry;
+		$current->{$entry} = $pl->$method . $pl->unit($entry);
+	},
+);
+
+# How to cause this the first time.
+# 	XXX Hours seems to have fractions, maybe ignore min ?
+$mw->repeat(30000 =>
+	sub {
+		$current->{'time'} = $pl->pl_hour . ':' . $pl->pl_min;
+	},
+);
+
+# ==============================================================================
+# The Loop
+# ==============================================================================
+MainLoop;
+exit 0;
+
+# ==============================================================================
+

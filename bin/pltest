@@ -1,0 +1,32 @@
+#!/usr/bin/perl -w
+use strict;
+use Device::Regulator::Plasmatronic;
+
+$| = 1;
+
+print "Connecting: ";
+my $pl = Device::Regulator::Plasmatronic->new();
+print "done\n";
+
+# Version
+print "Testing " . $pl->pl_loopback . "\n";
+print "Version = " . $pl->pl_version . "\n";
+
+# Some standard bits
+print "Bat V = " . $pl->pl_batv . $pl->unit('batv') . "\n";
+# print "Sol V = " . $pl->pl_solv . $pl->unit('solv') . "\n";
+
+# Totals IN, OUT, LOAD, CHARGE, SOC
+print "IN = " . $pl->pl_in . $pl->unit('in') . "\n";
+print "OUT = " . $pl->pl_out . $pl->unit('out') . "\n";
+print "Load = " . $pl->pl_load . $pl->unit('load') . "\n";
+print "Charge = " . $pl->pl_charge . $pl->unit('charge') . "\n";
+print "SOC = " . $pl->pl_dsoc . $pl->unit('dsoc') . "\n";
+print "Time to Float = " . $pl->pl_dsoc . $pl->unit('dfltim') . "\n";
+
+# Command line options.
+foreach my $bit (@ARGV) {
+	print "ARGV (" . $bit . ") = " . $pl->data($bit) . "\n";
+}
+
+

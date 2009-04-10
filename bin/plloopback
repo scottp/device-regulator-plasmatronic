@@ -1,0 +1,12 @@
+#!/usr/bin/perl -w
+use strict;
+use IO::File;
+
+my $file = new IO::File "+< /dev/ttyS0";
+my $sent_num = $file->syswrite(chr(187) . chr(0) . chr(0) . chr(68), 4);
+print "Sent $sent_num\n";
+my $buf = "";
+my $recv_num = $file->sysread($buf, 1);
+print "Received $recv_num\n";
+print " = " . ord($buf) . "\n";
+
